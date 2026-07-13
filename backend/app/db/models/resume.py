@@ -35,3 +35,8 @@ class Resume(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     extraction_status: Mapped[str] = mapped_column(
         String, nullable=False, server_default="PENDING"
     )
+    # Short, sanitized, machine-classifiable reason recorded when extraction
+    # fails (e.g. "NO_TEXT_LAYER"). Lives here rather than on
+    # resume_extractions because a failed extraction produces no extraction
+    # row. Added by migration 0005 (Phase 3).
+    extraction_failure_reason: Mapped[str | None] = mapped_column(String, nullable=True)

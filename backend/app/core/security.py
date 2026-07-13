@@ -41,10 +41,18 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 
 @dataclass(frozen=True)
 class AuthenticatedUser:
-    """The authenticated caller, derived exclusively from a verified JWT."""
+    """The authenticated caller, derived exclusively from a verified JWT.
+
+    ``access_token`` is the caller's own verified raw JWT, retained
+    (request-scoped, in memory only - never logged, never persisted) so
+    outbound Supabase Storage calls can be made *as the caller*, keeping
+    Storage RLS (migration 0004) enforced as defense-in-depth even against
+    backend path-construction bugs. Introduced in Phase 3.
+    """
 
     id: uuid.UUID
     email: str | None
+    access_token: str | None = None
 
 
 class AuthConfigurationError(AppError):
@@ -138,4 +146,8 @@ async def get_current_user(
     except ValueError as exc:
         raise AuthenticationError("Token subject is not a valid user id.") from exc
 
-    return AuthenticatedUser(id=user_id, email=claims.get("email"))
+    return AuthenticatedUser(
+        id=user_id,
+        email=claims.get("email"),
+        access_token=credentials.credentials,
+    )

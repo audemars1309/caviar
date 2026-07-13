@@ -68,6 +68,35 @@ class Settings(BaseSettings):
     SUPABASE_JWT_AUDIENCE: str = Field(default="authenticated")
     SUPABASE_JWT_ISSUER: str | None = Field(default=None)
 
+    # --- Phase 3: Supabase Storage + resume upload pipeline -------------
+    # Public (publishable) anon key. Required by the Storage REST API as
+    # the `apikey` header on every request; authorization itself is the
+    # caller's own verified JWT, so Storage RLS (migration 0004) applies.
+    # This is NOT the service-role key - the service-role key is
+    # deliberately not a setting in this phase at all.
+    SUPABASE_ANON_KEY: str | None = Field(default=None)
+
+    # Must match the bucket provisioned by migration 0004.
+    RESUMES_BUCKET: str = Field(default="resumes")
+
+    # Must not exceed the resumes.file_size_bytes CHECK constraint
+    # (10485760 = 10 MiB) established in migration 0002.
+    RESUME_MAX_FILE_SIZE_BYTES: int = Field(default=10_485_760, gt=0, le=10_485_760)
+
+    # Structural sanity cap - a "resume" with more pages than this is
+    # rejected before storage. Generous by design; typical resumes are 1-3.
+    RESUME_MAX_PAGE_COUNT: int = Field(default=15, gt=0)
+
+    # Seconds a single Storage REST call may take before timing out.
+    STORAGE_TIMEOUT_SECONDS: float = Field(default=30.0, gt=0)
+
+    # Lifetime of signed download URLs returned to the frontend.
+    STORAGE_SIGNED_URL_EXPIRES_SECONDS: int = Field(default=300, gt=0)
+
+    # In-process upload rate limit (per authenticated user).
+    RESUME_UPLOAD_RATE_LIMIT_MAX: int = Field(default=10, gt=0)
+    RESUME_UPLOAD_RATE_LIMIT_WINDOW_SECONDS: int = Field(default=3600, gt=0)
+
     @property
     def cors_origins_list(self) -> list[str]:
         if not self.BACKEND_CORS_ORIGINS:

@@ -1,10 +1,15 @@
 # Caviar Backend
 
-Phase 1 (current): repository foundation only - FastAPI application factory,
-structured logging, centralized exception handling, request correlation
-IDs, database engine/session scaffolding, and an empty Alembic migration
-environment. No Supabase schema, authentication, resume, Gemini, interview,
-speech, or LaTeX functionality exists yet.
+Current phase: **Phase 3 complete** - resume upload, Supabase Storage
+integration (Storage REST API, caller-JWT authorized), PDF validation,
+text extraction (pdfplumber), deterministic normalization, and
+deterministic section parsing, on top of the Phase 1 foundation (app
+factory, structured logging, correlation IDs, exception hierarchy) and
+Phase 2 (full domain schema, migrations 0001-0004, Supabase JWT auth,
+RLS-bound sessions). Migration head: `0005_resume_extractions`.
+
+No Gemini/AI functionality exists yet - Resume Intelligence and scoring
+begin in Phase 4.
 
 ## Setup
 

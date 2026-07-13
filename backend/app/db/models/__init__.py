@@ -17,12 +17,14 @@ from app.db.models.resume_builder import (
     ResumeBuilderSection,
     ResumeGeneration,
 )
+from app.db.models.resume_extraction import ResumeExtraction
 from app.db.models.speech import AnswerEvaluation, SpeechMetric
 
 __all__ = [
     "Profile",
     "JobContext",
     "Resume",
+    "ResumeExtraction",
     "ResumeAnalysis",
     "ResumeAnalysisCategory",
     "ResumeBuilderProject",
