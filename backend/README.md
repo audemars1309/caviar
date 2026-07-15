@@ -1,20 +1,23 @@
 # Caviar Backend
 
-Current phase: **Phase 4 complete** - centralized Gemini AI integration
-(google-genai SDK confined to one module, task-based model routing via
-per-task env vars, structured outputs with strict Pydantic validation,
-exactly one bounded repair attempt, typed AI failure handling) and
-Resume Intelligence: evidence-based structured analysis over the Phase 3
-deterministic extraction pipeline, with prompt trust boundaries and
-injection resistance for untrusted resume/job-description content,
-deterministic backend verification of evidence quotes, backend-owned
-category weights, and job-context CRUD. Migration head:
-`0006_resume_analysis_ai`.
+Current phase: **Phase 5 complete** - the deterministic Resume Scoring
+Engine (`app/services/resume_analysis/scoring.py`, algorithm
+`resume-scoring-1.0.0`): backend-owned, versioned, reproducible scoring
+over the validated Phase 4 AI category assessments. Evidence-requirement
+caps (unverified AI claims are never positive evidence), deterministic
+structural deductions from Phase 3 parser facts, explicit non-applicable
+category handling with weight renormalization, strict input validation,
+and full explainability (raw AI score, adjusted score, and every applied
+adjustment stored per category; `overall_score` +
+`scoring_algorithm_version` on the analysis). Gemini cannot generate,
+choose, or override the final score. Historical rows keep their stored
+version (`unscored` for pre-Phase-5 and failed analyses) and are never
+silently rescored. Migration head: `0007_scoring_engine`.
 
-The final numerical resume score is NOT computed yet: `overall_score`
-stays NULL with `scoring_algorithm_version='unscored'`. The deterministic
-Resume Scoring Engine that aggregates the stored, validated category
-scores and weights is Phase 5.
+Built on: Phase 4 (centralized Gemini integration, structured outputs,
+single bounded repair, trust boundaries, evidence verification), Phase 3
+(upload/storage/extraction/parsing), Phase 2 (schema, auth, RLS), and
+Phase 1 (application foundation).
 
 ## Setup
 

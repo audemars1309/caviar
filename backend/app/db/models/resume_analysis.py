@@ -76,6 +76,10 @@ class ResumeAnalysisCategory(Base, UUIDPrimaryKeyMixin, TimestampMixin):
             name="ck_resume_analysis_categories_score_range",
         ),
         CheckConstraint(
+            "adjusted_score IS NULL OR (adjusted_score BETWEEN 0 AND 100)",
+            name="ck_resume_analysis_categories_adjusted_score_range",
+        ),
+        CheckConstraint(
             "category IN ("
             "'CONTENT_QUALITY','EXPERIENCE_IMPACT','SKILLS_RELEVANCE',"
             "'PROJECT_QUALITY','RESUME_STRUCTURE','ATS_COMPATIBILITY',"
@@ -89,7 +93,14 @@ class ResumeAnalysisCategory(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ForeignKey("resume_analyses.id", ondelete="CASCADE"), nullable=False
     )
     category: Mapped[str] = mapped_column(String, nullable=False)
+    # Raw validated AI category assessment (Phase 4), stored unchanged.
     score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     weight: Mapped[float] = mapped_column(Numeric(4, 3), nullable=False)
     evidence: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
+    # AI qualitative penalties (Phase 4) - stored, never re-deducted.
     penalties: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
+    # --- Phase 5 (migration 0007): deterministic scoring engine output ---
+    # Backend-computed score after evidence caps / structural deductions;
+    # NULL when the engine marked the category non-applicable.
+    adjusted_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    adjustments: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")

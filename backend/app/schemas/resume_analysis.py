@@ -51,10 +51,13 @@ class AnalysisCategoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     category: str
-    score: int | None
+    score: int | None  # raw validated AI assessment (scoring input)
     weight: float
     evidence: list[dict[str, Any]]
     penalties: list[str]
+    # Deterministic engine output (Phase 5): None when non-applicable.
+    adjusted_score: int | None
+    adjustments: list[dict[str, Any]]
 
 
 class ResumeAnalysisSummaryResponse(BaseModel):

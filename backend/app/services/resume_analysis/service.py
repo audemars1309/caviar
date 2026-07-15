@@ -22,11 +22,14 @@ Persistence policy per AI failure class (see ai/exceptions.py):
     No fake analysis data is ever stored. Retrying is creating a new
     analysis - failed rows are immutable history.
 
-Score ownership: ``overall_score`` remains NULL and
-``scoring_algorithm_version`` holds the ``unscored`` sentinel. The AI's
-category scores are stored as validated inputs; the deterministic
-weighted final score is computed exclusively by the Phase 5 scoring
-engine. Nothing in this module lets model output become a final score.
+Score ownership (Phase 5): after a successful AI analysis, the
+deterministic scoring engine (``scoring.py``) computes ``overall_score``
+from the validated category assessments, backend-verified evidence
+counts, backend-owned stored weights, and deterministic parser facts, and
+stamps ``scoring_algorithm_version``. The AI's category scores are stored
+unchanged as inputs; failed analyses keep the ``unscored`` sentinel and a
+NULL score. Nothing the model outputs can directly become, choose, or
+override the final score.
 """
 
 from __future__ import annotations
@@ -56,6 +59,11 @@ from app.services.ai.schemas.resume_analysis import (
     ResumeAnalysisOutput,
 )
 from app.services.ai.tasks import AITask
+from app.services.resume_analysis.scoring import (
+    CategoryScoringInput,
+    count_verified_evidence,
+    score_analysis,
+)
 from app.services.resume_analysis.scoring_constants import (
     CATEGORY_WEIGHTS,
     UNSCORED_SENTINEL,
@@ -215,6 +223,33 @@ async def create_resume_analysis(
     assert isinstance(output, ResumeAnalysisOutput)
     analysis.ai_model = run_result.model
     categories = _apply_output_to_analysis(analysis, output, extraction.normalized_text)
+
+    # --- Phase 5: deterministic scoring (backend-owned, versioned) ------
+    # Runs strictly on validated data: raw AI category scores, backend-
+    # verified evidence counts, backend-owned stored weights, and the
+    # deterministic parser's detected sections. ScoringInputError is NOT
+    # caught: Phase 4 validation makes it unreachable, so an occurrence is
+    # a pipeline defect that must surface loudly (500), never a silently
+    # unscored analysis.
+    scoring = score_analysis(
+        [
+            CategoryScoringInput(
+                category=category.category,
+                raw_score=category.score,
+                weight=float(category.weight),
+                verified_evidence_count=count_verified_evidence(category.evidence),
+            )
+            for category in categories
+        ],
+        list(extraction.detected_section_types),
+    )
+    scored_by_name = {result.category: result for result in scoring.categories}
+    for category in categories:
+        result = scored_by_name[category.category]
+        category.adjusted_score = result.adjusted_score
+        category.adjustments = [dict(adjustment) for adjustment in result.adjustments]
+    analysis.overall_score = scoring.overall_score
+    analysis.scoring_algorithm_version = scoring.algorithm_version
 
     db.add(analysis)
     for category in categories:

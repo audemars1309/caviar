@@ -263,19 +263,47 @@ class TestResumeAnalysisFlow:
         assert response.status_code == 201, response.text
         body = response.json()
 
-        # Score ownership: the AI supplied category scores, but no final
-        # score exists and the sentinel version marks it unscored.
+        # Score ownership (Phase 5): the AI supplied raw category scores;
+        # the FINAL score is computed by the deterministic backend engine
+        # and stamped with its algorithm version. Every fixture category
+        # carries exactly one verified quote -> single-verified cap at 70;
+        # raw 64 < 70, all sections detected -> adjusted stays 64, so the
+        # deterministic weighted mean is exactly 64.
         assert body["status"] == "COMPLETED"
-        assert body["overall_score"] is None
-        assert body["scoring_algorithm_version"] == "unscored"
+        assert body["overall_score"] == 64
+        assert body["scoring_algorithm_version"] == "resume-scoring-1.0.0"
         assert body["analysis_schema_version"] == "resume-analysis-1.0.0"
         assert body["target_role_snapshot"] == "Backend Engineer"
 
-        # Seven categories, backend-owned weights, AI scores as inputs.
+        # Seven categories, backend-owned weights, AI scores as inputs,
+        # deterministic adjusted scores as outputs.
         assert len(body["categories"]) == 7
         weights = {c["category"]: c["weight"] for c in body["categories"]}
         assert abs(sum(weights.values()) - 1.0) < 1e-9
         assert all(c["score"] == 64 for c in body["categories"])
+        assert all(c["adjusted_score"] == 64 for c in body["categories"])
+        assert all(c["adjustments"] == [] for c in body["categories"])
+
+        # Reproducibility: recomputing from the STORED row data yields the
+        # stored result exactly.
+        from app.services.resume_analysis.scoring import (
+            CategoryScoringInput,
+            count_verified_evidence,
+            score_analysis,
+        )
+        recomputed = score_analysis(
+            [
+                CategoryScoringInput(
+                    category=c["category"],
+                    raw_score=c["score"],
+                    weight=c["weight"],
+                    verified_evidence_count=count_verified_evidence(c["evidence"]),
+                )
+                for c in body["categories"]
+            ],
+            ["SUMMARY", "EDUCATION", "SKILLS", "EXPERIENCE", "PROJECTS"],
+        )
+        assert recomputed.overall_score == body["overall_score"]
 
         # Deterministic evidence verification: real quote verified,
         # fabricated quote flagged false by the backend.
@@ -328,7 +356,9 @@ class TestResumeAnalysisFlow:
         body = response.json()
         assert body["status"] == "AI_ANALYSIS_FAILED"
         assert body["failure_reason"] == "INVALID_AI_OUTPUT"
+        # Failed analyses are never scored: NULL score, sentinel version.
         assert body["overall_score"] is None
+        assert body["scoring_algorithm_version"] == "unscored"
         assert body["categories"] == []
         assert len(client.raw_ai.calls) == 2  # single repair, hard stop
 
