@@ -45,6 +45,8 @@ class ResumeBuilderSection(Base, UUIDPrimaryKeyMixin, TimestampMixin):
             name="ck_resume_builder_sections_section_type_valid",
         ),
         UniqueConstraint("project_id", "sort_order", name="uq_resume_builder_sections_order"),
+        # Phase 6 (migration 0008): exactly one section per type per project.
+        UniqueConstraint("project_id", "section_type", name="uq_resume_builder_sections_type"),
     )
 
     project_id: Mapped[uuid.UUID] = mapped_column(

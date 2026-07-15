@@ -111,6 +111,10 @@ class Settings(BaseSettings):
     # pricing/rate-limit docs (July 2026): gemini-3.5-flash is current,
     # free-tier eligible, and supports structured outputs.
     RESUME_ANALYSIS_MODEL: str = Field(default="gemini-3.5-flash")
+    # Phase 6: Resume Builder content assistance (summary/bullet
+    # improvement). Same free-tier-eligible default; independently
+    # routable (e.g. to a Flash-Lite model) without code changes.
+    CONTENT_ASSIST_MODEL: str = Field(default="gemini-3.5-flash")
 
     # One outbound Gemini call may take this long before timing out.
     AI_TIMEOUT_SECONDS: float = Field(default=90.0, gt=0)
@@ -128,6 +132,10 @@ class Settings(BaseSettings):
     # user). AI calls are the most expensive operation in the system.
     RESUME_ANALYSIS_RATE_LIMIT_MAX: int = Field(default=10, gt=0)
     RESUME_ANALYSIS_RATE_LIMIT_WINDOW_SECONDS: int = Field(default=3600, gt=0)
+
+    # --- Phase 6: Resume Builder content assistance -----------------
+    CONTENT_ASSIST_RATE_LIMIT_MAX: int = Field(default=20, gt=0)
+    CONTENT_ASSIST_RATE_LIMIT_WINDOW_SECONDS: int = Field(default=3600, gt=0)
 
     @property
     def cors_origins_list(self) -> list[str]:

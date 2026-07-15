@@ -1,23 +1,31 @@
 # Caviar Backend
 
-Current phase: **Phase 5 complete** - the deterministic Resume Scoring
-Engine (`app/services/resume_analysis/scoring.py`, algorithm
-`resume-scoring-1.0.0`): backend-owned, versioned, reproducible scoring
-over the validated Phase 4 AI category assessments. Evidence-requirement
-caps (unverified AI claims are never positive evidence), deterministic
-structural deductions from Phase 3 parser facts, explicit non-applicable
-category handling with weight renormalization, strict input validation,
-and full explainability (raw AI score, adjusted score, and every applied
-adjustment stored per category; `overall_score` +
-`scoring_algorithm_version` on the analysis). Gemini cannot generate,
-choose, or override the final score. Historical rows keep their stored
-version (`unscored` for pre-Phase-5 and failed analyses) and are never
-silently rescored. Migration head: `0007_scoring_engine`.
+Current phase: **Phase 6 complete** - the AI Resume Builder:
+structured, presentation-independent resume data (one strictly validated
+JSONB content document per section type per project - PERSONAL_INFO,
+SUMMARY, EDUCATION, SKILLS, EXPERIENCE, INTERNSHIPS, PROJECTS,
+CERTIFICATIONS, ACHIEVEMENTS - never one big text field; DB-enforced
+one-section-per-type via migration 0008), full project/section CRUD under
+JWT + RLS ownership, and Gemini content assistance (summary
+generation/improvement, bullet improvement with grammar, conciseness,
+action-verb, and ATS-aware wording rules) through the existing
+centralized AI architecture (CONTENT_ASSIST task routing, structured
+outputs, single bounded repair, typed failures, trust-boundary wrapping
+of all user content). Factual integrity is layered: prompt rules forbid
+fabrication, rewrites use bracketed placeholders plus
+missing-fact questions instead of invented metrics, a deterministic
+backend fabrication guard flags any number not present in the user's own
+content, and assistance is persistence-free - only the user's explicit
+section upsert writes content. Migration head:
+`0008_builder_section_unique`.
 
-Built on: Phase 4 (centralized Gemini integration, structured outputs,
-single bounded repair, trust boundaries, evidence verification), Phase 3
-(upload/storage/extraction/parsing), Phase 2 (schema, auth, RLS), and
-Phase 1 (application foundation).
+No LaTeX/PDF generation exists yet - the controlled template rendering
+and compilation pipeline is Phase 7, consuming this phase's structured
+data unchanged.
+
+Built on: Phase 5 (deterministic scoring engine), Phase 4 (centralized
+Gemini integration), Phase 3 (upload/storage/extraction/parsing),
+Phase 2 (schema, auth, RLS), Phase 1 (application foundation).
 
 ## Setup
 
