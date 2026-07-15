@@ -12,9 +12,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api.v1.routes import health, profiles, resumes
+from app.api.v1.routes import health, job_contexts, profiles, resume_analyses, resumes
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["system"])
 api_router.include_router(profiles.router, tags=["profiles"])
 api_router.include_router(resumes.router, tags=["resumes"])
+api_router.include_router(resume_analyses.router, tags=["resume-analyses"])
+api_router.include_router(job_contexts.router, tags=["job-contexts"])

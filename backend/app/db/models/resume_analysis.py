@@ -56,6 +56,16 @@ class ResumeAnalysis(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     strengths: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     weaknesses: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     missing_sections: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    # --- Phase 4 (migration 0006): validated AI analysis output groups ---
+    critical_issues: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    ats_observations: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    section_feedback: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    bullet_improvements: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    priority_improvements: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    role_relevance: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    failure_reason: Mapped[str | None] = mapped_column(String, nullable=True)
+    ai_model: Mapped[str | None] = mapped_column(String, nullable=True)
+    analysis_schema_version: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class ResumeAnalysisCategory(Base, UUIDPrimaryKeyMixin, TimestampMixin):

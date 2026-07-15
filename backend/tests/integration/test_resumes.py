@@ -157,7 +157,6 @@ def fake_storage():
 
 @pytest_asyncio.fixture
 async def client(monkeypatch_secret, fake_storage):
-    from app.db.session import engine as app_engine
     from app.main import app
 
     app.dependency_overrides[get_storage_client] = lambda: fake_storage
@@ -166,13 +165,9 @@ async def client(monkeypatch_secret, fake_storage):
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             yield ac
     finally:
+        # Engine disposal lives in the shared autouse fixture
+        # (tests/integration/conftest.py).
         app.dependency_overrides.pop(get_storage_client, None)
-        # pytest-asyncio gives every test its own event loop, but the app's
-        # engine is module-level and pools asyncpg connections bound to the
-        # loop they were created on. Disposing here (still on this test's
-        # loop) prevents a pooled connection from leaking into the next
-        # test's loop, which fails with "attached to a different loop".
-        await app_engine.dispose()
 
 
 def _pdf_upload(content: bytes, filename: str = "my resume.pdf"):

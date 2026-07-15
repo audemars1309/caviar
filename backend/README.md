@@ -1,15 +1,20 @@
 # Caviar Backend
 
-Current phase: **Phase 3 complete** - resume upload, Supabase Storage
-integration (Storage REST API, caller-JWT authorized), PDF validation,
-text extraction (pdfplumber), deterministic normalization, and
-deterministic section parsing, on top of the Phase 1 foundation (app
-factory, structured logging, correlation IDs, exception hierarchy) and
-Phase 2 (full domain schema, migrations 0001-0004, Supabase JWT auth,
-RLS-bound sessions). Migration head: `0005_resume_extractions`.
+Current phase: **Phase 4 complete** - centralized Gemini AI integration
+(google-genai SDK confined to one module, task-based model routing via
+per-task env vars, structured outputs with strict Pydantic validation,
+exactly one bounded repair attempt, typed AI failure handling) and
+Resume Intelligence: evidence-based structured analysis over the Phase 3
+deterministic extraction pipeline, with prompt trust boundaries and
+injection resistance for untrusted resume/job-description content,
+deterministic backend verification of evidence quotes, backend-owned
+category weights, and job-context CRUD. Migration head:
+`0006_resume_analysis_ai`.
 
-No Gemini/AI functionality exists yet - Resume Intelligence and scoring
-begin in Phase 4.
+The final numerical resume score is NOT computed yet: `overall_score`
+stays NULL with `scoring_algorithm_version='unscored'`. The deterministic
+Resume Scoring Engine that aggregates the stored, validated category
+scores and weights is Phase 5.
 
 ## Setup
 

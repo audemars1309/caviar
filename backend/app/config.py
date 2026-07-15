@@ -97,6 +97,38 @@ class Settings(BaseSettings):
     RESUME_UPLOAD_RATE_LIMIT_MAX: int = Field(default=10, gt=0)
     RESUME_UPLOAD_RATE_LIMIT_WINDOW_SECONDS: int = Field(default=3600, gt=0)
 
+    # --- Phase 4: Gemini AI (Resume Intelligence) ------------------------
+    # Google AI Studio API key for the Gemini Developer API. Backend-only;
+    # never exposed to the frontend.
+    GEMINI_API_KEY: str | None = Field(default=None)
+
+    # Task-based model routing (approved Phase 0 architecture): each AI
+    # task resolves its model from its own environment variable, so tasks
+    # can be moved between models (cost/quality/free-tier routing) without
+    # code changes. Only the tasks that exist so far have settings here;
+    # later phases add ANSWER_EVALUATION_MODEL, INTERVIEW_MODEL, etc. with
+    # the subsystems that use them. Default validated against the Gemini
+    # pricing/rate-limit docs (July 2026): gemini-3.5-flash is current,
+    # free-tier eligible, and supports structured outputs.
+    RESUME_ANALYSIS_MODEL: str = Field(default="gemini-3.5-flash")
+
+    # One outbound Gemini call may take this long before timing out.
+    AI_TIMEOUT_SECONDS: float = Field(default=90.0, gt=0)
+    AI_MAX_OUTPUT_TOKENS: int = Field(default=8192, gt=0)
+    # Low temperature: analysis should be evidence-bound, not creative.
+    AI_TEMPERATURE: float = Field(default=0.2, ge=0.0, le=2.0)
+
+    # Untrusted-content size caps forwarded to the model (characters).
+    # Oversized content is truncated (and the truncation logged), never
+    # rejected - a long resume is still analyzable from its first N chars.
+    AI_MAX_RESUME_CHARS: int = Field(default=40_000, gt=0)
+    AI_MAX_JOB_DESCRIPTION_CHARS: int = Field(default=20_000, gt=0)
+
+    # In-process rate limit for analysis creation (per authenticated
+    # user). AI calls are the most expensive operation in the system.
+    RESUME_ANALYSIS_RATE_LIMIT_MAX: int = Field(default=10, gt=0)
+    RESUME_ANALYSIS_RATE_LIMIT_WINDOW_SECONDS: int = Field(default=3600, gt=0)
+
     @property
     def cors_origins_list(self) -> list[str]:
         if not self.BACKEND_CORS_ORIGINS:
