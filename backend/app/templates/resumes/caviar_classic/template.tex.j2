@@ -1,0 +1,68 @@
+((= caviar_classic 1.0.0 - Caviar-owned resume template.
+    CONTRACT: every string in the rendering context is ALREADY LaTeX-escaped
+    by the escaping boundary (latex_escape.prepare_for_latex). This template
+    must never apply additional escaping and never receives raw user input.
+    Jinja delimiters are remapped to triple-paren variables, paren-star
+    blocks, and paren-equals comments so LaTeX braces never collide with
+    template syntax. Minimal package surface by design: geometry only. =))
+\documentclass[10pt]{article}
+\usepackage[margin=1.6cm]{geometry}
+\setlength{\parindent}{0pt}
+\pagenumbering{gobble}
+
+\newcommand{\sectionrule}[1]{%
+  \vspace{0.55em}{\large\bfseries #1}\\[-0.55em]\rule{\textwidth}{0.4pt}\vspace{0.15em}}
+\newcommand{\entryline}[2]{{\bfseries #1} \hfill #2\\}
+\newcommand{\entrysub}[2]{{\itshape #1} \hfill {\itshape #2}\\}
+
+\begin{document}
+
+((* if personal_info *))
+\begin{center}
+  {\LARGE\bfseries ((( personal_info.full_name )))}\\[0.35em]
+  ((( personal_info.contact_line )))
+\end{center}
+((* endif *))
+
+((* if summary *))
+\sectionrule{Summary}
+((( summary.text )))\par
+((* endif *))
+
+((* for block in entry_blocks *))
+\sectionrule{((( block.heading )))}
+((* for entry in block.entries *))
+\entryline{((( entry.primary )))}{((( entry.dates )))}
+((* if entry.secondary *))\entrysub{((( entry.secondary )))}{((( entry.location )))}((* endif *))
+((* if entry.description *))((( entry.description )))\\((* endif *))
+((* if entry.bullets *))
+\begin{itemize}\setlength{\itemsep}{0.1em}
+((* for bullet in entry.bullets *))  \item ((( bullet )))
+((* endfor *))\end{itemize}
+((* else *))\vspace{0.3em}
+((* endif *))
+((* endfor *))
+((* endfor *))
+
+((* if skills *))
+\sectionrule{Skills}
+((* for group in skills.groups *))
+{\bfseries ((( group.name ))):} ((( group.skills_line )))\\
+((* endfor *))
+((* endif *))
+
+((* if certifications *))
+\sectionrule{Certifications}
+((* for entry in certifications.entries *))
+((( entry.line )))\\
+((* endfor *))
+((* endif *))
+
+((* if achievements *))
+\sectionrule{Achievements}
+\begin{itemize}\setlength{\itemsep}{0.1em}
+((* for entry in achievements.entries *))  \item ((( entry.line )))
+((* endfor *))\end{itemize}
+((* endif *))
+
+\end{document}

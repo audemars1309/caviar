@@ -1,31 +1,34 @@
 # Caviar Backend
 
-Current phase: **Phase 6 complete** - the AI Resume Builder:
-structured, presentation-independent resume data (one strictly validated
-JSONB content document per section type per project - PERSONAL_INFO,
-SUMMARY, EDUCATION, SKILLS, EXPERIENCE, INTERNSHIPS, PROJECTS,
-CERTIFICATIONS, ACHIEVEMENTS - never one big text field; DB-enforced
-one-section-per-type via migration 0008), full project/section CRUD under
-JWT + RLS ownership, and Gemini content assistance (summary
-generation/improvement, bullet improvement with grammar, conciseness,
-action-verb, and ATS-aware wording rules) through the existing
-centralized AI architecture (CONTENT_ASSIST task routing, structured
-outputs, single bounded repair, typed failures, trust-boundary wrapping
-of all user content). Factual integrity is layered: prompt rules forbid
-fabrication, rewrites use bracketed placeholders plus
-missing-fact questions instead of invented metrics, a deterministic
-backend fabrication guard flags any number not present in the user's own
-content, and assistance is persistence-free - only the user's explicit
-section upsert writes content. Migration head:
-`0008_builder_section_unique`.
+Current phase: **Phase 7 complete** - the controlled LaTeX Resume
+Generation Engine: Caviar-owned versioned templates (registry-validated
+metadata; arbitrary user templates impossible by construction), Jinja2
+rendering with remapped delimiters behind a single deterministic
+escaping/normalization boundary (all ten LaTeX specials, Unicode
+preserved for XeTeX, control characters removed, command injection
+structurally impossible, no double escaping by construction), sandboxed
+Tectonic compilation (pinned binary, argument arrays, never shell=True,
+randomized isolated temp dirs, timeout, exit-code validation, capped
+stdout/stderr capture, sanitized failure hints, guaranteed cleanup), PDF
+validation (header, non-empty, size cap, page count) with structured
+PAGE_OVERFLOW and UNSUPPORTED_GLYPHS warnings (content is never silently
+deleted), private generated-resumes Storage upload via the Storage REST
+client under the caller's JWT, full lifecycle persistence
+(PENDING/RENDERING/COMPILING/VALIDATING/UPLOADING/COMPLETED/FAILED) with
+failure classification (TEMPLATE/RENDERING/INPUT_NORMALIZATION/COMPILER/
+VALIDATION/STORAGE), and recoverable failures that never touch structured
+resume data. No AI participates in generation. Migration head:
+`0009_generation_warnings`.
 
-No LaTeX/PDF generation exists yet - the controlled template rendering
-and compilation pipeline is Phase 7, consuming this phase's structured
-data unchanged.
+**Tectonic deployment (validated against Tectonic 0.15.0):** vendor the
+pinned release binary with the deploy, pre-warm its bundle cache once at
+deploy/build time by compiling a warm-up document with network access,
+then run with `TECTONIC_ONLY_CACHED=true` so production compiles are
+offline, deterministic, and reproducible.
 
-Built on: Phase 5 (deterministic scoring engine), Phase 4 (centralized
-Gemini integration), Phase 3 (upload/storage/extraction/parsing),
-Phase 2 (schema, auth, RLS), Phase 1 (application foundation).
+Built on: Phase 6 (Resume Builder), Phase 5 (scoring engine), Phase 4
+(Gemini integration), Phase 3 (upload/extraction), Phase 2 (schema,
+auth, RLS), Phase 1 (foundation).
 
 ## Setup
 

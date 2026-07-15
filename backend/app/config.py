@@ -137,6 +137,22 @@ class Settings(BaseSettings):
     CONTENT_ASSIST_RATE_LIMIT_MAX: int = Field(default=20, gt=0)
     CONTENT_ASSIST_RATE_LIMIT_WINDOW_SECONDS: int = Field(default=3600, gt=0)
 
+    # --- Phase 7: LaTeX resume generation ----------------------------
+    # Path to the pinned Tectonic executable. Production deploys vendor a
+    # specific release binary and pre-warm its bundle cache at deploy
+    # time; see backend/README.md.
+    TECTONIC_BINARY_PATH: str = Field(default="tectonic")
+    # When true, Tectonic runs with --only-cached: compiles never touch
+    # the network and use only the pre-warmed local bundle cache. Enable
+    # in production for deterministic, offline, reproducible compiles.
+    TECTONIC_ONLY_CACHED: bool = Field(default=False)
+    LATEX_COMPILE_TIMEOUT_SECONDS: float = Field(default=60.0, gt=0)
+    # Hard cap on generated PDF size (bytes).
+    RESUME_PDF_MAX_BYTES: int = Field(default=5_242_880, gt=0)
+    GENERATED_RESUMES_BUCKET: str = Field(default="generated-resumes")
+    GENERATION_RATE_LIMIT_MAX: int = Field(default=10, gt=0)
+    GENERATION_RATE_LIMIT_WINDOW_SECONDS: int = Field(default=3600, gt=0)
+
     @property
     def cors_origins_list(self) -> list[str]:
         if not self.BACKEND_CORS_ORIGINS:

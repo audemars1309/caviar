@@ -1,0 +1,18 @@
+{
+  "template_id": "caviar_classic",
+  "name": "Caviar Classic",
+  "template_version": "1.0.0",
+  "description": "Single-column, typography-first resume with strong hierarchy and ATS-safe structure.",
+  "engine": "tectonic-xetex",
+  "ats_classification": "ATS_SAFE",
+  "supported_sections": [
+    "PERSONAL_INFO", "SUMMARY", "EDUCATION", "SKILLS", "EXPERIENCE",
+    "INTERNSHIPS", "PROJECTS", "CERTIFICATIONS", "ACHIEVEMENTS"
+  ],
+  "default_section_order": [
+    "SUMMARY", "EXPERIENCE", "INTERNSHIPS", "PROJECTS", "EDUCATION",
+    "SKILLS", "CERTIFICATIONS", "ACHIEVEMENTS"
+  ],
+  "max_pages": 2,
+  "status": "APPROVED"
+}

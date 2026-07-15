@@ -18,6 +18,7 @@ from app.api.v1.routes import (
     profiles,
     resume_analyses,
     resume_builder,
+    resume_generations,
     resumes,
 )
 
@@ -28,3 +29,4 @@ api_router.include_router(resumes.router, tags=["resumes"])
 api_router.include_router(resume_analyses.router, tags=["resume-analyses"])
 api_router.include_router(job_contexts.router, tags=["job-contexts"])
 api_router.include_router(resume_builder.router, tags=["resume-builder"])
+api_router.include_router(resume_generations.router, tags=["resume-generations"])

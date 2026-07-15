@@ -80,3 +80,6 @@ class ResumeGeneration(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     compiler_version: Mapped[str | None] = mapped_column(String, nullable=True)
     failure_reason: Mapped[str | None] = mapped_column(String, nullable=True)
     compilation_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # --- Phase 7 (migration 0009) ---
+    warnings: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
+    failure_category: Mapped[str | None] = mapped_column(String, nullable=True)
