@@ -1,0 +1,67 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "caviar-backend"
+version = "0.1.0"
+description = "Caviar backend - AI-powered career intelligence and candidate performance platform."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+
+dependencies = [
+  "fastapi>=0.115,<1.0",
+  "uvicorn[standard]>=0.32,<1.0",
+  "pydantic>=2.9,<3.0",
+  "pydantic-settings>=2.6,<3.0",
+  "sqlalchemy[asyncio]>=2.0.36,<3.0",
+  "asyncpg>=0.30,<1.0",
+  "alembic>=1.14,<2.0",
+  "pyjwt[crypto]>=2.9,<3.0",
+  "httpx>=0.27,<1.0",
+  "python-multipart>=0.0.12,<1.0",
+  "pdfplumber>=0.11,<0.12",
+  "google-genai>=2.11,<3.0",
+  "jinja2>=3.1,<4.0",
+]
+
+[project.optional-dependencies]
+speech = [
+  "faster-whisper>=1.2,<2.0",
+  "ctranslate2>=4.5,<5.0",
+]
+tts = [
+  "kokoro>=0.9,<1.0",
+  "soundfile>=0.12,<1.0",
+]
+dev = [
+  "pytest>=8.3,<9.0",
+  "pytest-asyncio>=0.24,<1.0",
+  "ruff>=0.7,<1.0",
+  "reportlab>=4.2,<5.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# B008 (function call in argument default) is intentionally ignored: FastAPI's
+# dependency-injection system requires `Depends(...)` as a parameter default,
+# which is exactly the pattern this rule otherwise flags.
+ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+# Migration files embed long SQL statements that are clearer unwrapped;
+# line length only is exempted there. All other lint rules still apply.
+"migrations/**" = ["E501"]
