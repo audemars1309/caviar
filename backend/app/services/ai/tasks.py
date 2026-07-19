@@ -20,6 +20,9 @@ from app.services.ai.exceptions import AIConfigurationError
 class AITask(enum.StrEnum):
     RESUME_ANALYSIS = "RESUME_ANALYSIS"
     CONTENT_ASSIST = "CONTENT_ASSIST"
+    ANSWER_EVALUATION = "ANSWER_EVALUATION"
+    INTERVIEW_QUESTION = "INTERVIEW_QUESTION"
+    INTERVIEW_REPORT = "INTERVIEW_REPORT"
 
 
 def resolve_model_for_task(task: AITask, settings: Settings) -> str:
@@ -27,4 +30,10 @@ def resolve_model_for_task(task: AITask, settings: Settings) -> str:
         return settings.RESUME_ANALYSIS_MODEL
     if task is AITask.CONTENT_ASSIST:
         return settings.CONTENT_ASSIST_MODEL
+    if task is AITask.ANSWER_EVALUATION:
+        return settings.ANSWER_EVALUATION_MODEL
+    if task is AITask.INTERVIEW_QUESTION:
+        return settings.INTERVIEW_QUESTION_MODEL
+    if task is AITask.INTERVIEW_REPORT:
+        return settings.INTERVIEW_REPORT_MODEL
     raise AIConfigurationError(f"No model routing configured for AI task '{task}'.")

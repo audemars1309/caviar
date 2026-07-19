@@ -1,34 +1,44 @@
 # Caviar Backend
 
-Current phase: **Phase 7 complete** - the controlled LaTeX Resume
-Generation Engine: Caviar-owned versioned templates (registry-validated
-metadata; arbitrary user templates impossible by construction), Jinja2
-rendering with remapped delimiters behind a single deterministic
-escaping/normalization boundary (all ten LaTeX specials, Unicode
-preserved for XeTeX, control characters removed, command injection
-structurally impossible, no double escaping by construction), sandboxed
-Tectonic compilation (pinned binary, argument arrays, never shell=True,
-randomized isolated temp dirs, timeout, exit-code validation, capped
-stdout/stderr capture, sanitized failure hints, guaranteed cleanup), PDF
-validation (header, non-empty, size cap, page count) with structured
-PAGE_OVERFLOW and UNSUPPORTED_GLYPHS warnings (content is never silently
-deleted), private generated-resumes Storage upload via the Storage REST
-client under the caller's JWT, full lifecycle persistence
-(PENDING/RENDERING/COMPILING/VALIDATING/UPLOADING/COMPLETED/FAILED) with
-failure classification (TEMPLATE/RENDERING/INPUT_NORMALIZATION/COMPILER/
-VALIDATION/STORAGE), and recoverable failures that never touch structured
-resume data. No AI participates in generation. Migration head:
-`0009_generation_warnings`.
+Current phase: **Phase 8 complete** - the Interview Intelligence
+System: recoverable 7-state session lifecycle (PENDING/READY/RUNNING/
+PAUSED/COMPLETED/FAILED/CANCELLED) with `current_question_id` recovery;
+a backend-owned state machine over the approved stage taxonomy
+(deterministic per-type stage plans and largest-remainder question-budget
+allocation, forward-only transitions, per-stage allowed-action tables,
+follow-up loop guard) where Gemini recommendations are validated inputs
+the engine can override; structured bounded interview memory (never
+concatenated prompt history); faster-whisper transcription behind a
+`TranscriptionProvider` Protocol (lazy optional `[speech]` extra, CPU/GPU
+via settings, word timestamps + language detection, typed
+unavailable/failed/timeout/empty/unsupported/too-large errors) with
+deterministic backend speech metrics (`speech-metrics-1.0.0`: WPM,
+pauses, fillers, hesitations, silence, completeness - Gemini computes
+none of them); centralized Gemini answer evaluation
+(`answer-evaluation-1.0.0`, all 8 criteria validated, backend
+profile-filters applicability by question type, one bounded repair);
+adaptive questioning with deterministic duplicate prevention (normalized
+no-repeat set, one regeneration, deterministic stage fallback - AI
+failure never strands a session); deterministic readiness calculation
+(`interview-readiness-1.0.0`: difficulty-weighted, outlier-trimmed,
+NULL-excluding category aggregation with backend weights - Gemini never
+computes the score); Kokoro TTS behind a `TTSProvider` Protocol
+(optional `[tts]` extra; failure degrades to text); and structured
+interview reports (deterministic timeline/topic-coverage/question-history/
+speech summary + readiness categories, resilient AI narrative). Answers
+are persisted before any AI call; evaluation failure preserves the
+transcript and resubmission replaces the unevaluated attempt. Migration
+head: `0010_interview_engine`.
 
-**Tectonic deployment (validated against Tectonic 0.15.0):** vendor the
-pinned release binary with the deploy, pre-warm its bundle cache once at
-deploy/build time by compiling a warm-up document with network access,
-then run with `TECTONIC_ONLY_CACHED=true` so production compiles are
-offline, deterministic, and reproducible.
+**Speech extras:** `pip install -e ".[speech]"` enables transcription,
+`pip install -e ".[tts]"` enables the interviewer voice; both models
+download from Hugging Face on first use and run locally (0 API cost).
+Without the extras, audio endpoints return typed 503s and text-mode
+interviews work fully.
 
-Built on: Phase 6 (Resume Builder), Phase 5 (scoring engine), Phase 4
-(Gemini integration), Phase 3 (upload/extraction), Phase 2 (schema,
-auth, RLS), Phase 1 (foundation).
+Built on: Phase 7 (LaTeX generation), Phase 6 (Resume Builder), Phase 5
+(scoring engine), Phase 4 (Gemini integration), Phase 3 (upload/
+extraction), Phase 2 (schema, auth, RLS), Phase 1 (foundation).
 
 ## Setup
 

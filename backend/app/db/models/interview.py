@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -31,7 +32,8 @@ class InterviewSession(Base, UUIDPrimaryKeyMixin, TimestampMixin):
             name="ck_interview_sessions_current_stage_valid",
         ),
         CheckConstraint(
-            "status IN ('IN_PROGRESS','COMPLETED','ABANDONED')",
+            "status IN ('PENDING','READY','RUNNING','PAUSED','COMPLETED',"
+            "'FAILED','CANCELLED')",
             name="ck_interview_sessions_status_valid",
         ),
         Index("ix_interview_sessions_user_id", "user_id"),
@@ -50,9 +52,25 @@ class InterviewSession(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     current_stage: Mapped[str] = mapped_column(
         String, nullable=False, server_default="INTRODUCTION"
     )
-    status: Mapped[str] = mapped_column(String, nullable=False, server_default="IN_PROGRESS")
+    status: Mapped[str] = mapped_column(String, nullable=False, server_default="PENDING")
     question_budget_used: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default="0"
+    )
+    # --- Phase 8 (migration 0010) ---
+    interview_type: Mapped[str] = mapped_column(
+        String, nullable=False, server_default="MIXED"
+    )
+    difficulty: Mapped[str] = mapped_column(String, nullable=False, server_default="MEDIUM")
+    duration_minutes: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="20"
+    )
+    question_budget: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="10"
+    )
+    failure_reason: Mapped[str | None] = mapped_column(String, nullable=True)
+    current_question_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("interview_questions.id", ondelete="SET NULL", use_alter=True),
+        nullable=True,
     )
 
 
@@ -75,6 +93,10 @@ class InterviewQuestion(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     question_type: Mapped[str] = mapped_column(String, nullable=False)
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
     sequence_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    # --- Phase 8 (migration 0010) ---
+    difficulty: Mapped[str] = mapped_column(String, nullable=False, server_default="MEDIUM")
+    topic: Mapped[str | None] = mapped_column(String, nullable=True)
+    normalized_text: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
 
 
 class InterviewAnswer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -97,3 +119,7 @@ class InterviewAnswer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     transcript: Mapped[str | None] = mapped_column(Text, nullable=True)
     transcript_segments: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, server_default="PENDING")
+    # --- Phase 8 (migration 0010) ---
+    input_mode: Mapped[str] = mapped_column(String, nullable=False, server_default="TEXT")
+    language: Mapped[str | None] = mapped_column(String, nullable=True)
+    audio_duration_seconds: Mapped[float | None] = mapped_column(Numeric, nullable=True)

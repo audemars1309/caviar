@@ -25,6 +25,12 @@ class SpeechMetric(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     max_pause_duration_seconds: Mapped[float | None] = mapped_column(Numeric, nullable=True)
     filler_word_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     filler_word_frequency: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    # --- Phase 8 (migration 0010) ---
+    hesitation_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    silence_duration_seconds: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    response_duration_seconds: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    answer_char_length: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    speech_completeness: Mapped[float | None] = mapped_column(Numeric, nullable=True)
 
 
 class AnswerEvaluation(Base, UUIDPrimaryKeyMixin, TimestampMixin):

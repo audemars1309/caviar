@@ -27,6 +27,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+speech = [
+  "faster-whisper>=1.2,<2.0",
+  "ctranslate2>=4.5,<5.0",
+]
+tts = [
+  "kokoro>=0.9,<1.0",
+  "soundfile>=0.12,<1.0",
+]
 dev = [
   "pytest>=8.3,<9.0",
   "pytest-asyncio>=0.24,<1.0",

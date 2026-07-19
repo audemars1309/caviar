@@ -27,6 +27,19 @@ class InterviewMemory(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     contradictions: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
     topics_explored: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
     topics_pending: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
+    # --- Phase 8 (migration 0010) ---
+    questions_asked: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
+    skills_covered: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
+    user_corrections: Mapped[list] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
+    confidence_trend: Mapped[list] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
+    follow_up_opportunities: Mapped[list] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
+    recent_turns: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
 
 
 class InterviewReport(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -52,6 +65,9 @@ class InterviewReport(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     key_strengths: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     key_weaknesses: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     improvement_priorities: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    # --- Phase 8 (migration 0010) ---
+    report_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    narrative_model: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class InterviewReportCategory(Base, UUIDPrimaryKeyMixin, TimestampMixin):

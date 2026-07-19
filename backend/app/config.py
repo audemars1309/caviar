@@ -153,6 +153,29 @@ class Settings(BaseSettings):
     GENERATION_RATE_LIMIT_MAX: int = Field(default=10, gt=0)
     GENERATION_RATE_LIMIT_WINDOW_SECONDS: int = Field(default=3600, gt=0)
 
+    # --- Phase 8: Interview Intelligence ------------------------------
+    # Task-based model routing (per-task env vars, per Phase 0).
+    ANSWER_EVALUATION_MODEL: str = Field(default="gemini-3.5-flash")
+    INTERVIEW_QUESTION_MODEL: str = Field(default="gemini-3.5-flash")
+    INTERVIEW_REPORT_MODEL: str = Field(default="gemini-3.5-flash")
+
+    # faster-whisper (optional [speech] extra; lazy-loaded).
+    WHISPER_MODEL_SIZE: str = Field(default="base")
+    WHISPER_DEVICE: str = Field(default="cpu")  # cpu | cuda | auto
+    WHISPER_COMPUTE_TYPE: str | None = Field(default=None)
+    TRANSCRIPTION_TIMEOUT_SECONDS: float = Field(default=120.0, gt=0)
+    ANSWER_AUDIO_MAX_BYTES: int = Field(default=26_214_400, gt=0)  # 25 MiB
+
+    # Kokoro TTS (optional [tts] extra; lazy-loaded).
+    KOKORO_VOICE: str = Field(default="af_heart")
+    KOKORO_LANG_CODE: str = Field(default="a")
+    TTS_TIMEOUT_SECONDS: float = Field(default=60.0, gt=0)
+
+    # In-process rate limit for answer submission (transcription + up to
+    # three AI calls per cycle make it the most expensive endpoint).
+    INTERVIEW_ANSWER_RATE_LIMIT_MAX: int = Field(default=60, gt=0)
+    INTERVIEW_ANSWER_RATE_LIMIT_WINDOW_SECONDS: int = Field(default=3600, gt=0)
+
     @property
     def cors_origins_list(self) -> list[str]:
         if not self.BACKEND_CORS_ORIGINS:
