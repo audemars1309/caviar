@@ -22,6 +22,8 @@ const ResumePage = lazy(() => import("@/pages/ResumePage"));
 const ResumeBuilderPage = lazy(() => import("@/pages/ResumeBuilderPage"));
 const ResumeAnalysisPage = lazy(() => import("@/pages/ResumeAnalysisPage"));
 const BuilderProjectPage = lazy(() => import("@/pages/BuilderProjectPage"));
+const InterviewRoomPage = lazy(() => import("@/pages/InterviewRoomPage"));
+const InterviewReportPage = lazy(() => import("@/pages/InterviewReportPage"));
 const InterviewPage = lazy(() => import("@/pages/InterviewPage"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 const ProfilePage = lazy(() => import("@/pages/ProfilePage"));
@@ -60,6 +62,8 @@ export const router = createBrowserRouter([
           { path: PATHS.resumeBuilder, element: suspended(<ResumeBuilderPage />) },
           { path: "/resume-builder/:projectId", element: suspended(<BuilderProjectPage />) },
           { path: PATHS.interview, element: suspended(<InterviewPage />) },
+          { path: "/interview/:sessionId", element: suspended(<InterviewRoomPage />) },
+          { path: "/interview/:sessionId/report", element: suspended(<InterviewReportPage />) },
           { path: PATHS.settings, element: suspended(<SettingsPage />) },
           { path: PATHS.profile, element: suspended(<ProfilePage />) },
         ],

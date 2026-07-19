@@ -85,3 +85,20 @@
     outline-offset: 2px;
   }
 }
+
+/* Print/export: interview reports use browser print-to-PDF. Strip app
+   chrome so the printed document contains only the page content. */
+@media print {
+  header,
+  aside,
+  nav,
+  footer {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  body {
+    background: white;
+  }
+}

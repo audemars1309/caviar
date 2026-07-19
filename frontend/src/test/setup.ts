@@ -21,3 +21,12 @@ Object.defineProperty(window, "matchMedia", {
     onchange: null,
   })),
 });
+
+// jsdom lacks the pointer-capture and scroll APIs Radix Select uses.
+// Polyfill them so component tests can drive real Radix primitives.
+if (typeof Element !== "undefined") {
+  Element.prototype.hasPointerCapture ??= () => false;
+  Element.prototype.setPointerCapture ??= () => undefined;
+  Element.prototype.releasePointerCapture ??= () => undefined;
+  Element.prototype.scrollIntoView ??= () => undefined;
+}
