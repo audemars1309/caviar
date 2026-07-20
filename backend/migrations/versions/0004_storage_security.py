@@ -11,17 +11,8 @@ Policies below check that the first path segment -
 `(storage.foldername(name))[1]` - equals the caller's `auth.uid()`, so a
 user can only read/write objects under their own user-id folder.
 
-`storage.objects` RLS is enabled but deliberately NOT forced here: on a
-real Supabase project, `storage.objects` is managed by Supabase's own
-storage-api service, which already does not run as the table owner, so
-FORCE is unnecessary there and could interfere with Supabase-internal
-operations. Locally (against the Phase 2 dev-shim `storage.objects`),
-ownership does mean our connection could bypass RLS without FORCE - this
-is a known, acceptable local-only limitation: the storage bucket/policy
-*definitions* are still fully created and validated here; full enforcement
-against local direct queries is not exercised, only against a real
-Supabase project's storage-api layer, which is the actual code path that
-matters for production.
+On Supabase, `storage.objects` is a platform-managed table. RLS is already
+managed by Supabase itself, so this migration does not attempt to enable it.
 """
 
 from __future__ import annotations
@@ -40,30 +31,42 @@ def upgrade() -> None:
     for bucket_id in _BUCKETS:
         op.execute(
             f"INSERT INTO storage.buckets (id, name, public) "
-            f"VALUES ('{bucket_id}', '{bucket_id}', false) ON CONFLICT (id) DO NOTHING;"
+            f"VALUES ('{bucket_id}', '{bucket_id}', false) "
+            f"ON CONFLICT (id) DO NOTHING;"
         )
 
-    op.execute("ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;")
+    # Supabase already manages RLS on storage.objects.
+    # Do NOT attempt:
+    # ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
     for bucket_id in _BUCKETS:
         policy_prefix = bucket_id.replace("-", "_")
         ownership_check = (
-            f"bucket_id = '{bucket_id}' AND (storage.foldername(name))[1] = auth.uid()::text"
+            f"bucket_id = '{bucket_id}' "
+            f"AND (storage.foldername(name))[1] = auth.uid()::text"
         )
+
         op.execute(
-            f"CREATE POLICY {policy_prefix}_select_own ON storage.objects "
+            f"CREATE POLICY {policy_prefix}_select_own "
+            f"ON storage.objects "
             f"FOR SELECT USING ({ownership_check});"
         )
+
         op.execute(
-            f"CREATE POLICY {policy_prefix}_insert_own ON storage.objects "
+            f"CREATE POLICY {policy_prefix}_insert_own "
+            f"ON storage.objects "
             f"FOR INSERT WITH CHECK ({ownership_check});"
         )
+
         op.execute(
-            f"CREATE POLICY {policy_prefix}_update_own ON storage.objects "
+            f"CREATE POLICY {policy_prefix}_update_own "
+            f"ON storage.objects "
             f"FOR UPDATE USING ({ownership_check});"
         )
+
         op.execute(
-            f"CREATE POLICY {policy_prefix}_delete_own ON storage.objects "
+            f"CREATE POLICY {policy_prefix}_delete_own "
+            f"ON storage.objects "
             f"FOR DELETE USING ({ownership_check});"
         )
 
@@ -71,9 +74,21 @@ def upgrade() -> None:
 def downgrade() -> None:
     for bucket_id in _BUCKETS:
         policy_prefix = bucket_id.replace("-", "_")
-        op.execute(f"DROP POLICY IF EXISTS {policy_prefix}_select_own ON storage.objects;")
-        op.execute(f"DROP POLICY IF EXISTS {policy_prefix}_insert_own ON storage.objects;")
-        op.execute(f"DROP POLICY IF EXISTS {policy_prefix}_update_own ON storage.objects;")
-        op.execute(f"DROP POLICY IF EXISTS {policy_prefix}_delete_own ON storage.objects;")
+
+        op.execute(
+            f"DROP POLICY IF EXISTS {policy_prefix}_select_own ON storage.objects;"
+        )
+        op.execute(
+            f"DROP POLICY IF EXISTS {policy_prefix}_insert_own ON storage.objects;"
+        )
+        op.execute(
+            f"DROP POLICY IF EXISTS {policy_prefix}_update_own ON storage.objects;"
+        )
+        op.execute(
+            f"DROP POLICY IF EXISTS {policy_prefix}_delete_own ON storage.objects;"
+        )
+
     for bucket_id in _BUCKETS:
-        op.execute(f"DELETE FROM storage.buckets WHERE id = '{bucket_id}';")
+        op.execute(
+            f"DELETE FROM storage.buckets WHERE id = '{bucket_id}';"
+        )
