@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings, get_settings
 from app.core.exceptions import UpstreamServiceError
 from app.db.session import get_db
+from app.version import __version__
 
 router = APIRouter()
 
@@ -25,6 +26,7 @@ class HealthResponse(BaseModel):
     status: str
     app_name: str
     environment: str
+    version: str
 
 
 class ReadinessResponse(BaseModel):
@@ -35,7 +37,12 @@ class ReadinessResponse(BaseModel):
 @router.get("/health", response_model=HealthResponse, status_code=status.HTTP_200_OK)
 async def health_check(settings: Settings = Depends(get_settings)) -> HealthResponse:
     """Liveness check. Does not touch the database or any external service."""
-    return HealthResponse(status="ok", app_name=settings.APP_NAME, environment=settings.APP_ENV)
+    return HealthResponse(
+        status="ok",
+        app_name=settings.APP_NAME,
+        environment=settings.APP_ENV,
+        version=__version__,
+    )
 
 
 @router.get("/health/ready", response_model=ReadinessResponse, status_code=status.HTTP_200_OK)

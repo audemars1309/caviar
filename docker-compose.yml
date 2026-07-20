@@ -1,0 +1,72 @@
+# Caviar - local production simulation.
+#
+# Brings up Postgres, the backend API, and the nginx-served frontend so the
+# full stack can be exercised locally in production-like images. This is NOT
+# the production deployment (frontend -> Vercel, backend -> Railway, database
+# -> Supabase); it is a faithful local rehearsal.
+#
+# Usage:
+#   1. cp backend/.env.example backend/.env   and fill in real values
+#   2. docker compose up --build
+#   3. Frontend: http://localhost:8080   API: http://localhost:8000/api/v1
+#
+# Secrets are read from backend/.env (git-ignored); none are committed here.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: caviar
+      POSTGRES_PASSWORD: caviar
+      POSTGRES_DB: caviar
+    ports:
+      - "5432:5432"
+    volumes:
+      - caviar_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U caviar -d caviar"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    # Apply migrations against the compose Postgres, then serve. Mirrors the
+    # Railway release command so local simulation matches production startup.
+    command: >-
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      # Compose networking: reach Postgres by service name. This overrides
+      # any localhost DATABASE_URL from .env for the in-compose run.
+      DATABASE_URL: postgresql+asyncpg://caviar:caviar@db:5432/caviar
+      # Default to development so the stack boots with example credentials
+      # (startup validation is advisory in development). Set APP_ENV=staging
+      # in your shell for a strict production-config rehearsal, which then
+      # requires a fully valid backend/.env (JWT mode, real Supabase, etc.).
+      APP_ENV: ${APP_ENV:-development}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Public build-time config only (never secrets). Point the SPA at
+        # the backend published above.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api/v1}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-https://example.supabase.co}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-replace-me}
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  caviar_pgdata:

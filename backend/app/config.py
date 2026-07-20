@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     # avoids that pitfall entirely.
     BACKEND_CORS_ORIGINS: str = Field(default="")
 
+    # Comma-separated Host header allowlist for TrustedHostMiddleware.
+    # Empty (the development default) allows any host. In production this
+    # should list the API's own domain(s) to block Host-header spoofing.
+    ALLOWED_HOSTS: str = Field(default="")
+
     DATABASE_URL: str = Field(
         default="postgresql+asyncpg://caviar:caviar@localhost:5432/caviar",
         description=(
