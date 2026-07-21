@@ -23,7 +23,7 @@ resume score is computed deterministically by the backend from these
 validated category scores and backend-owned weights in Phase 5; no field
 in this schema is, or ever becomes, the final score.
 
-Schema-shape constraints: Gemini structured output is most reliable with
+Schema-shape constraints: OpenAI structured output is most reliable with
 required fields and simple types. Optionality is expressed with explicit
 ``applicable`` booleans (``RoleRelevance``) rather than Optional/Union
 fields, and every list is bounded via prompt guidance rather than
