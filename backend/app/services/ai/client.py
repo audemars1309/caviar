@@ -1,9 +1,9 @@
-"""Centralized Gemini client: SDK adapter + structured-output runner.
+"""Centralized OpenAI client: SDK adapter + structured-output runner.
 
 Two layers, split for testability and provider isolation:
 
-  * ``RawStructuredAIClient`` (Protocol) / ``GeminiRawClient`` - the ONLY
-    place in the codebase that touches the google-genai SDK. Sends one
+  * ``RawStructuredAIClient`` (Protocol) / ``OpenAIRawClient`` - the ONLY
+    place in the codebase that touches the openai SDK. Sends one
     structured-output request (system instruction + user content +
     response schema) and returns the raw JSON text, mapping every SDK
     failure to the typed exceptions in ``app.services.ai.exceptions``.
@@ -16,9 +16,9 @@ Two layers, split for testability and provider isolation:
 Retry policy (deliberate, per failure class):
   * Provider 5xx / transport / timeout -> one retry after a short delay
     (transient by definition).
-  * Provider 429 (rate limit) -> NO retry. On the Gemini free tier an
-    immediate retry burns quota and usually re-fails; fail fast with a
-    typed error and let the user retry later.
+  * Provider 429 (rate limit) -> NO retry. An immediate retry burns quota
+    and usually re-fails; fail fast with a typed error and let the user
+    retry later.
   * Validation failure -> one repair call that sends the model its own
     invalid output plus the validation errors and asks for corrected
     JSON. The repair prompt contains no untrusted resume content - the
@@ -27,14 +27,16 @@ Retry policy (deliberate, per failure class):
 Logging: task, model, duration, attempt kind, success/failure class.
 Never candidate content, never raw model output.
 
-SDK usage validated against google-genai 2.11.0 (July 2026): async calls
-via ``client.aio.models.generate_content`` with ``GenerateContentConfig``
-(``system_instruction``, ``response_mime_type='application/json'``,
-``response_schema`` accepting a Pydantic model class); errors surface as
-``google.genai.errors.ClientError`` / ``ServerError`` with ``.code``. The
-newer Interactions API is not used: generate_content remains fully
-supported, is the stable surface, and confining SDK contact to this one
-module makes any future migration a single-file change.
+SDK usage validated against openai 2.46.0 (July 2026): async calls via
+``AsyncOpenAI().responses.parse`` (the stable Responses API with
+Structured Outputs), passing ``instructions`` (system prompt), ``input``
+(user content), ``text_format`` (a Pydantic model class), ``temperature``
+and ``max_output_tokens``; the raw JSON is read from ``.output_text`` so
+the runner's own validation and repair path is preserved byte-for-byte.
+Errors surface as ``openai.RateLimitError`` (429), ``openai.APIStatusError``
+(other non-2xx, with ``.status_code``), and ``openai.APIConnectionError`` /
+``openai.APITimeoutError`` (transport, no status). Confining SDK contact to
+this one module makes any future provider migration a single-file change.
 """
 
 from __future__ import annotations
@@ -46,10 +48,9 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Protocol, TypeVar
 
+import openai
 from fastapi import Depends
-from google import genai
-from google.genai import errors as genai_errors
-from google.genai import types as genai_types
+from openai import AsyncOpenAI
 from pydantic import BaseModel, ValidationError
 
 from app.config import Settings, get_settings
@@ -92,12 +93,13 @@ class RawStructuredAIClient(Protocol):
 
 
 @lru_cache
-def _sdk_client(api_key: str) -> genai.Client:
-    """One SDK client per process per key; genai.Client is reusable."""
-    return genai.Client(api_key=api_key)
+def _openai_client(api_key: str) -> AsyncOpenAI:
+    """One SDK client per process per key; AsyncOpenAI is reusable and
+    manages its own connection pool."""
+    return AsyncOpenAI(api_key=api_key)
 
 
-class GeminiRawClient:
+class OpenAIRawClient:
     def __init__(self, *, api_key: str) -> None:
         self._api_key = api_key
 
@@ -112,40 +114,45 @@ class GeminiRawClient:
         max_output_tokens: int,
         timeout_seconds: float,
     ) -> str:
-        config = genai_types.GenerateContentConfig(
-            system_instruction=system_instruction,
-            response_mime_type="application/json",
-            response_schema=schema,
-            temperature=temperature,
-            max_output_tokens=max_output_tokens,
-            http_options=genai_types.HttpOptions(timeout=int(timeout_seconds * 1000)),
-        )
         try:
-            response = await _sdk_client(self._api_key).aio.models.generate_content(
-                model=model, contents=user_content, config=config
+            response = await _openai_client(self._api_key).responses.parse(
+                model=model,
+                instructions=system_instruction,
+                input=user_content,
+                text_format=schema,
+                temperature=temperature,
+                max_output_tokens=max_output_tokens,
+                timeout=timeout_seconds,
             )
-        except genai_errors.ClientError as exc:
-            if exc.code == 429:
-                logger.warning("Gemini rate-limited the project (model=%s).", model)
-                raise AIRateLimitedError(
-                    "The AI provider is rate-limiting requests. Try again later."
-                ) from exc
-            logger.error("Gemini client error: code=%s model=%s", exc.code, model)
-            raise AIProviderUnavailableError("The AI provider rejected the request.") from exc
-        except genai_errors.ServerError as exc:
-            logger.error("Gemini server error: code=%s model=%s", exc.code, model)
+        except openai.RateLimitError as exc:
+            # 429 -> NO retry (RateLimitError must be caught before
+            # APIStatusError, of which it is a subclass).
+            logger.warning("OpenAI rate-limited the project (model=%s).", model)
+            raise AIRateLimitedError(
+                "The AI provider is rate-limiting requests. Try again later."
+            ) from exc
+        except openai.APIStatusError as exc:
+            # Any other non-2xx (4xx or 5xx). Transient by our retry
+            # policy: the runner retries AIProviderUnavailableError once.
+            logger.error(
+                "OpenAI API status error: code=%s model=%s", exc.status_code, model
+            )
             raise AIProviderUnavailableError(
                 "The AI provider is currently unavailable."
             ) from exc
-        except Exception as exc:  # transport failures, timeouts
-            logger.error("Gemini transport failure: %s (model=%s)", exc.__class__.__name__, model)
+        except openai.APIConnectionError as exc:
+            # Transport failures and timeouts (APITimeoutError subclasses
+            # APIConnectionError); no HTTP status.
+            logger.error(
+                "OpenAI transport failure: %s (model=%s)", exc.__class__.__name__, model
+            )
             raise AIProviderUnavailableError(
                 "The AI provider could not be reached."
             ) from exc
 
-        text = response.text
+        text = response.output_text
         if not text:
-            logger.error("Gemini returned an empty response (model=%s).", model)
+            logger.error("OpenAI returned an empty response (model=%s).", model)
             raise AIInvalidOutputError("The AI provider returned an empty response.")
         return text
 
@@ -211,8 +218,8 @@ class StructuredAIRunner:
             return await self._raw_client.generate_raw(**kwargs)
 
     async def run(self, request: AIRequest, schema: type[TSchema]) -> AIRunResult:
-        if not self._settings.GEMINI_API_KEY:
-            raise AIConfigurationError("GEMINI_API_KEY is not configured.")
+        if not self._settings.OPENAI_API_KEY:
+            raise AIConfigurationError("OPENAI_API_KEY is not configured.")
         model = resolve_model_for_task(request.task, self._settings)
         started = time.monotonic()
 
@@ -267,5 +274,5 @@ def get_ai_runner(settings: Settings = Depends(get_settings)) -> StructuredAIRun
     this dependency; unit tests construct the runner with a fake raw
     client directly. The missing-key check lives in ``run`` (not here) so
     dependency resolution never fails before request validation does."""
-    api_key = settings.GEMINI_API_KEY or ""
-    return StructuredAIRunner(GeminiRawClient(api_key=api_key), settings)
+    api_key = settings.OPENAI_API_KEY or ""
+    return StructuredAIRunner(OpenAIRawClient(api_key=api_key), settings)
