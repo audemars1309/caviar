@@ -4,7 +4,7 @@ Phase 1 scope: settings for the backend foundation (app metadata, CORS,
 logging, database connection string).
 
 Phase 2 adds: Supabase JWT authentication settings. Settings required by
-later phases - Gemini task-based model routing (RESUME_ANALYSIS_MODEL,
+later phases - OpenAI task-based model routing (RESUME_ANALYSIS_MODEL,
 ANSWER_EVALUATION_MODEL, INTERVIEW_MODEL, CONTENT_ASSIST_MODEL,
 REPORT_GENERATION_MODEL), STT/TTS configuration, LaTeX compiler
 configuration, and Supabase Storage/service-role keys - are intentionally
@@ -102,26 +102,30 @@ class Settings(BaseSettings):
     RESUME_UPLOAD_RATE_LIMIT_MAX: int = Field(default=10, gt=0)
     RESUME_UPLOAD_RATE_LIMIT_WINDOW_SECONDS: int = Field(default=3600, gt=0)
 
-    # --- Phase 4: Gemini AI (Resume Intelligence) ------------------------
-    # Google AI Studio API key for the Gemini Developer API. Backend-only;
-    # never exposed to the frontend.
-    GEMINI_API_KEY: str | None = Field(default=None)
+    # --- Phase 4: OpenAI AI (Resume Intelligence) -----------------------
+    # OpenAI API key for the Responses API. Backend-only; never exposed to
+    # the frontend.
+    OPENAI_API_KEY: str | None = Field(default=None)
+
+    # Default model for all AI tasks unless a per-task override is set.
+    # Must be the explicit Luna model ID: the bare "gpt-5.6" alias routes
+    # to Sol, not Luna. Verified against OpenAI model docs (July 2026).
+    OPENAI_MODEL: str = Field(default="gpt-5.6-luna")
 
     # Task-based model routing (approved Phase 0 architecture): each AI
     # task resolves its model from its own environment variable, so tasks
-    # can be moved between models (cost/quality/free-tier routing) without
-    # code changes. Only the tasks that exist so far have settings here;
-    # later phases add ANSWER_EVALUATION_MODEL, INTERVIEW_MODEL, etc. with
-    # the subsystems that use them. Default validated against the Gemini
-    # pricing/rate-limit docs (July 2026): gemini-3.5-flash is current,
-    # free-tier eligible, and supports structured outputs.
-    RESUME_ANALYSIS_MODEL: str = Field(default="gemini-3.5-flash")
+    # can be moved between models (cost/quality routing) without code
+    # changes. Only the tasks that exist so far have settings here; later
+    # phases add ANSWER_EVALUATION_MODEL, INTERVIEW_MODEL, etc. with the
+    # subsystems that use them. Default is GPT-5.6 Luna: OpenAI's fastest,
+    # most cost-efficient GPT-5.6 tier, supports Structured Outputs.
+    RESUME_ANALYSIS_MODEL: str = Field(default="gpt-5.6-luna")
     # Phase 6: Resume Builder content assistance (summary/bullet
-    # improvement). Same free-tier-eligible default; independently
-    # routable (e.g. to a Flash-Lite model) without code changes.
-    CONTENT_ASSIST_MODEL: str = Field(default="gemini-3.5-flash")
+    # improvement). Same default; independently routable without code
+    # changes.
+    CONTENT_ASSIST_MODEL: str = Field(default="gpt-5.6-luna")
 
-    # One outbound Gemini call may take this long before timing out.
+    # One outbound OpenAI call may take this long before timing out.
     AI_TIMEOUT_SECONDS: float = Field(default=90.0, gt=0)
     AI_MAX_OUTPUT_TOKENS: int = Field(default=8192, gt=0)
     # Low temperature: analysis should be evidence-bound, not creative.
@@ -160,9 +164,9 @@ class Settings(BaseSettings):
 
     # --- Phase 8: Interview Intelligence ------------------------------
     # Task-based model routing (per-task env vars, per Phase 0).
-    ANSWER_EVALUATION_MODEL: str = Field(default="gemini-3.5-flash")
-    INTERVIEW_QUESTION_MODEL: str = Field(default="gemini-3.5-flash")
-    INTERVIEW_REPORT_MODEL: str = Field(default="gemini-3.5-flash")
+    ANSWER_EVALUATION_MODEL: str = Field(default="gpt-5.6-luna")
+    INTERVIEW_QUESTION_MODEL: str = Field(default="gpt-5.6-luna")
+    INTERVIEW_REPORT_MODEL: str = Field(default="gpt-5.6-luna")
 
     # faster-whisper (optional [speech] extra; lazy-loaded).
     WHISPER_MODEL_SIZE: str = Field(default="base")
