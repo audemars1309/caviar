@@ -99,6 +99,18 @@ def _openai_client(api_key: str) -> AsyncOpenAI:
     return AsyncOpenAI(api_key=api_key)
 
 
+# GPT-5-family reasoning models (Luna/Terra/Sol and the o-series) run at a
+# fixed internal setting and reject the `temperature` sampling parameter
+# with an HTTP 400 invalid_request error. Detect them by model-ID prefix so
+# a task routed to a still-sampling model keeps sending temperature.
+_TEMPERATURE_UNSUPPORTED_PREFIXES: tuple[str, ...] = ("gpt-5", "o1", "o3", "o4")
+
+
+def _model_rejects_temperature(model: str) -> bool:
+    normalized = model.lower()
+    return any(normalized.startswith(prefix) for prefix in _TEMPERATURE_UNSUPPORTED_PREFIXES)
+
+
 class OpenAIRawClient:
     def __init__(self, *, api_key: str) -> None:
         self._api_key = api_key
@@ -114,15 +126,26 @@ class OpenAIRawClient:
         max_output_tokens: int,
         timeout_seconds: float,
     ) -> str:
+        # Build request kwargs. GPT-5-family reasoning models reject the
+        # `temperature` sampling parameter (HTTP 400 invalid_request);
+        # they only run at their fixed internal setting. Omit it for those
+        # models and pass it for any model that still supports it. The
+        # protocol signature is unchanged - temperature is simply not
+        # forwarded when the target model does not accept it.
+        request_kwargs: dict[str, object] = dict(
+            model=model,
+            instructions=system_instruction,
+            input=user_content,
+            text_format=schema,
+            max_output_tokens=max_output_tokens,
+            timeout=timeout_seconds,
+        )
+        if not _model_rejects_temperature(model):
+            request_kwargs["temperature"] = temperature
+
         try:
             response = await _openai_client(self._api_key).responses.parse(
-                model=model,
-                instructions=system_instruction,
-                input=user_content,
-                text_format=schema,
-                temperature=temperature,
-                max_output_tokens=max_output_tokens,
-                timeout=timeout_seconds,
+                **request_kwargs
             )
         except openai.RateLimitError as exc:
             # 429 -> NO retry (RateLimitError must be caught before
@@ -132,10 +155,20 @@ class OpenAIRawClient:
                 "The AI provider is rate-limiting requests. Try again later."
             ) from exc
         except openai.APIStatusError as exc:
-            # Any other non-2xx (4xx or 5xx). Transient by our retry
-            # policy: the runner retries AIProviderUnavailableError once.
+            # Split by status class. 4xx is a deterministic bad request
+            # (unsupported parameter, bad model, malformed input): retrying
+            # is pointless, so surface it as a configuration/invalid-request
+            # error (NOT the retryable AIProviderUnavailableError). 5xx is a
+            # genuine upstream failure and stays retryable.
+            if 400 <= exc.status_code < 500:
+                logger.error(
+                    "OpenAI rejected the request: code=%s model=%s", exc.status_code, model
+                )
+                raise AIConfigurationError(
+                    "The AI provider rejected the request as invalid."
+                ) from exc
             logger.error(
-                "OpenAI API status error: code=%s model=%s", exc.status_code, model
+                "OpenAI API server error: code=%s model=%s", exc.status_code, model
             )
             raise AIProviderUnavailableError(
                 "The AI provider is currently unavailable."
