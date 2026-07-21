@@ -165,7 +165,7 @@ def monkeypatch_settings(monkeypatch):
     settings = get_settings()
     monkeypatch.setattr(settings, "SUPABASE_JWT_SECRET", _TEST_SECRET)
     monkeypatch.setattr(settings, "SUPABASE_JWT_JWKS_URL", None)
-    monkeypatch.setattr(settings, "GEMINI_API_KEY", "integration-test-gemini-key")
+    monkeypatch.setattr(settings, "OPENAI_API_KEY", "integration-test-openai-key")
     return settings
 
 
