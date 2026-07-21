@@ -30,7 +30,7 @@ _REQUIRED_IN_PRODUCTION: tuple[tuple[str, str], ...] = (
     ("DATABASE_URL", "Postgres connection string (Supabase)."),
     ("SUPABASE_URL", "Supabase project URL, used for auth and storage."),
     ("SUPABASE_ANON_KEY", "Supabase anon key, used for Storage REST calls."),
-    ("GEMINI_API_KEY", "Google Gemini API key for all AI tasks."),
+    ("OPENAI_API_KEY", "OpenAI API key for all AI tasks."),
     ("BACKEND_CORS_ORIGINS", "Allowed browser origins; empty blocks the SPA."),
 )
 
