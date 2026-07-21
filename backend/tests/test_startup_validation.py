@@ -19,7 +19,7 @@ def _production_settings(**overrides: object) -> Settings:
         "DATABASE_URL": "postgresql+asyncpg://user:pw@db.example.com:5432/caviar",
         "SUPABASE_URL": "https://proj.supabase.co",
         "SUPABASE_ANON_KEY": "anon-key",
-        "GEMINI_API_KEY": "gemini-key",
+        "OPENAI_API_KEY": "openai-key",
         "BACKEND_CORS_ORIGINS": "https://app.example.com",
         "SUPABASE_JWT_JWKS_URL": "https://proj.supabase.co/auth/v1/.well-known/jwks.json",
     }
@@ -31,9 +31,9 @@ def test_valid_production_settings_have_no_problems() -> None:
     assert validate_settings(_production_settings()) == []
 
 
-def test_missing_gemini_key_is_flagged() -> None:
-    problems = validate_settings(_production_settings(GEMINI_API_KEY=None))
-    assert any("GEMINI_API_KEY" in p for p in problems)
+def test_missing_openai_key_is_flagged() -> None:
+    problems = validate_settings(_production_settings(OPENAI_API_KEY=None))
+    assert any("OPENAI_API_KEY" in p for p in problems)
 
 
 def test_localhost_database_is_flagged_in_production() -> None:
@@ -59,12 +59,12 @@ def test_debug_true_is_flagged() -> None:
 
 def test_enforce_raises_in_production_when_invalid() -> None:
     with pytest.raises(ConfigurationError):
-        enforce_startup_configuration(_production_settings(GEMINI_API_KEY=None))
+        enforce_startup_configuration(_production_settings(OPENAI_API_KEY=None))
 
 
 def test_enforce_is_advisory_in_development() -> None:
     # Development must never raise, even with an empty configuration.
-    dev = Settings(APP_ENV="development", GEMINI_API_KEY=None)  # type: ignore[arg-type]
+    dev = Settings(APP_ENV="development", OPENAI_API_KEY=None)  # type: ignore[arg-type]
     enforce_startup_configuration(dev)  # no exception
 
 
