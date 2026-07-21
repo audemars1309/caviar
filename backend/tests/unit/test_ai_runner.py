@@ -48,7 +48,7 @@ class FakeRawClient:
 def make_settings(**overrides) -> Settings:
     values = dict(
         DATABASE_URL="postgresql+asyncpg://x:x@localhost/x",
-        GEMINI_API_KEY="test-key",
+        OPENAI_API_KEY="test-key",
         _env_file=None,
     )
     values.update(overrides)
@@ -121,7 +121,7 @@ class TestStructuredAIRunner:
 
     async def test_missing_api_key_is_configuration_error(self) -> None:
         client = FakeRawClient([VALID_RAW])
-        runner = StructuredAIRunner(client, make_settings(GEMINI_API_KEY=None))
+        runner = StructuredAIRunner(client, make_settings(OPENAI_API_KEY=None))
         with pytest.raises(AIConfigurationError):
             await runner.run(make_request(), DemoOutput)
         assert client.calls == []  # provider never contacted
