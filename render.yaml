@@ -1,0 +1,47 @@
+# Render blueprint for the Caviar backend.
+#
+# Builds the backend from its multi-stage Dockerfile (which installs the
+# Tectonic LaTeX compiler and pre-warms its resource bundle into the image),
+# runs database migrations on deploy, and serves the FastAPI app.
+#
+# Secrets (DATABASE_URL, SUPABASE_*, OPENAI_API_KEY, JWT config) are set in
+# the Render dashboard, not committed here. sync:false marks them as
+# dashboard-managed.
+services:
+  - type: web
+    name: caviar-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    healthCheckPath: /api/v1/health
+    # Migrate then serve. $PORT is provided by Render.
+    dockerCommand: >-
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      # Tectonic: use the bundle baked into the image; do not reach the CDN
+      # at runtime. The Dockerfile pre-warms /opt/tectonic-cache.
+      - key: TECTONIC_CACHE_DIR
+        value: /opt/tectonic-cache
+      - key: TECTONIC_ONLY_CACHED
+        value: "true"
+      # Dashboard-managed secrets (set these in Render, never in git):
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_JWT_JWKS_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: BACKEND_CORS_ORIGINS
+        sync: false
+      - key: ALLOWED_HOSTS
+        sync: false
