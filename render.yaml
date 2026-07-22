@@ -27,6 +27,13 @@ services:
         value: production
       - key: DEBUG
         value: "false"
+      # Pin Python 3.12: Render's native default is now 3.13, but the Kokoro
+      # TTS dependency ([tts] extra) requires Python <3.13. 3.12 satisfies
+      # Kokoro plus faster-whisper/ctranslate2 and the rest of the stack.
+      # (backend/.python-version pins the same; this documents it in the
+      # blueprint.) Patchless -> Render uses the latest 3.12.x.
+      - key: PYTHON_VERSION
+        value: "3.12"
       # Point the app at the Tectonic binary + cache vendored by
       # render-build.sh (rootDir=backend -> /opt/render/project/src).
       - key: TECTONIC_BINARY_PATH
