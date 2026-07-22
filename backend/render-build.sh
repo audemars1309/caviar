@@ -52,7 +52,13 @@ fi
 # TECTONIC_ONLY_CACHED=false until you confirm a warmed cache, see below).
 echo "Pre-warming Tectonic bundle cache ..."
 WARM_DIR="$(mktemp -d)"
-printf '%s' '\documentclass[10pt]{article}\usepackage[margin=1.6cm]{geometry}\setlength{\parindent}{0pt}\pagenumbering{gobble}\begin{document}\rule{\textwidth}{0.4pt}warm\end{document}' > "${WARM_DIR}/warm.tex"
+# The warm document must exercise the SAME font sizes and shapes the approved
+# templates use, or XeTeX will request an uncached Latin Modern variant at
+# runtime (e.g. lmroman17 for \LARGE) and fail with "TFM file ... not found".
+# caviar_classic uses: \LARGE + \bfseries (name), \large + \bfseries (section
+# headings), \bfseries (entry/skill labels), \itshape (entry subs), itemize.
+# Include one of each so every needed font/size/shape is pulled into the cache.
+printf '%s' '\documentclass[10pt]{article}\usepackage[margin=1.6cm]{geometry}\setlength{\parindent}{0pt}\pagenumbering{gobble}\begin{document}{\LARGE Large Normal}\\{\LARGE\bfseries Large Bold}\\{\large Sub Normal}\\{\large\bfseries Sub Bold}\\\rule{\textwidth}{0.4pt}{\bfseries Bold} {\itshape Italic} normal\begin{itemize}\item bullet\end{itemize}\end{document}' > "${WARM_DIR}/warm.tex"
 if HOME="${WARM_DIR}" TECTONIC_CACHE_DIR="${CACHE_DIR}" \
        "${BIN}" --outdir "${WARM_DIR}" --chatter minimal "${WARM_DIR}/warm.tex" \
        && [ -f "${WARM_DIR}/warm.pdf" ]; then
