@@ -1,72 +1,106 @@
-# Caviar - local production simulation.
+# syntax=docker/dockerfile:1
+
+# ---------------------------------------------------------------------------
+# Caviar backend - production image (multi-stage).
 #
-# Brings up Postgres, the backend API, and the nginx-served frontend so the
-# full stack can be exercised locally in production-like images. This is NOT
-# the production deployment (frontend -> Vercel, backend -> Railway, database
-# -> Supabase); it is a faithful local rehearsal.
+# Stage 1 (builder): install dependencies into a virtualenv.
+# Stage 2 (runtime): copy only the venv + app onto a slim base, run as a
+# non-root user. The heavy optional [speech]/[tts] extras (faster-whisper,
+# ctranslate2, kokoro) are NOT installed here: they pull large native/model
+# payloads and are lazy-loaded at runtime only when interview audio is used.
+# Deployments that need local STT/TTS build with --build-arg INSTALL_SPEECH=1.
+# ---------------------------------------------------------------------------
+
+FROM python:3.12-slim AS builder
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /build
+
+# Create an isolated virtualenv we can copy wholesale into the runtime stage.
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy only dependency metadata first for better layer caching.
+COPY pyproject.toml README.md ./
+# Copy the package so the project itself installs (hatchling needs the tree).
+COPY app ./app
+COPY migrations ./migrations
+COPY alembic.ini ./
+
+ARG INSTALL_SPEECH=0
+RUN pip install --upgrade pip && \
+    if [ "$INSTALL_SPEECH" = "1" ]; then \
+        pip install ".[speech,tts]"; \
+    else \
+        pip install .; \
+    fi
+
+# ---------------------------------------------------------------------------
+
+FROM python:3.12-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    APP_ENV=production
+
+# --- LaTeX compiler (Tectonic) ---------------------------------------------
+# Resume PDF generation shells out to the `tectonic` binary. Install the
+# self-contained static musl build (single ~25MB executable, no system TeX
+# Live) so the slim image can compile LaTeX. Pinned for reproducibility.
 #
-# Usage:
-#   1. cp backend/.env.example backend/.env   and fill in real values
-#   2. docker compose up --build
-#   3. Frontend: http://localhost:8080   API: http://localhost:8000/api/v1
-#
-# Secrets are read from backend/.env (git-ignored); none are committed here.
+# The resource bundle is pre-warmed at build time by compiling a document
+# with the exact preamble the approved templates use (documentclass article
+# + geometry - the templates are "minimal package surface by design:
+# geometry only"). This caches every package the real compiles need into
+# the image, so runtime compiles do NOT depend on Tectonic's bundle CDN and
+# are fast from the first request - which is why production sets
+# TECTONIC_ONLY_CACHED=true. TECTONIC_CACHE_DIR is world-writable so the
+# non-root runtime user can read it. If a future template adds packages,
+# extend the warm document's preamble to match.
+ARG TECTONIC_VERSION=0.16.9
+ENV TECTONIC_CACHE_DIR=/opt/tectonic-cache
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends curl ca-certificates; \
+    curl -fsSL \
+      "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%40${TECTONIC_VERSION}/tectonic-${TECTONIC_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
+      -o /tmp/tectonic.tar.gz; \
+    tar -xzf /tmp/tectonic.tar.gz -C /usr/local/bin tectonic; \
+    chmod +x /usr/local/bin/tectonic; \
+    rm /tmp/tectonic.tar.gz; \
+    tectonic --version; \
+    mkdir -p "$TECTONIC_CACHE_DIR"; \
+    printf '%s' '\documentclass[10pt]{article}\usepackage[margin=1.6cm]{geometry}\setlength{\parindent}{0pt}\pagenumbering{gobble}\begin{document}\rule{\textwidth}{0.4pt}warm\end{document}' > /tmp/warm.tex; \
+    HOME=/tmp tectonic --outdir /tmp --chatter minimal /tmp/warm.tex; \
+    test -f /tmp/warm.pdf; \
+    rm -f /tmp/warm.tex /tmp/warm.pdf /tmp/warm.log; \
+    apt-get purge -y curl; apt-get autoremove -y; rm -rf /var/lib/apt/lists/*; \
+    chmod -R a+rwX "$TECTONIC_CACHE_DIR"
 
-services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: caviar
-      POSTGRES_PASSWORD: caviar
-      POSTGRES_DB: caviar
-    ports:
-      - "5432:5432"
-    volumes:
-      - caviar_pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U caviar -d caviar"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+# Non-root runtime user.
+RUN groupadd --system caviar && useradd --system --gid caviar --home /app caviar
 
-  backend:
-    build:
-      context: ./backend
-    # Apply migrations against the compose Postgres, then serve. Mirrors the
-    # Railway release command so local simulation matches production startup.
-    command: >-
-      sh -c "alembic upgrade head &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000"
-    env_file:
-      - ./backend/.env
-    environment:
-      # Compose networking: reach Postgres by service name. This overrides
-      # any localhost DATABASE_URL from .env for the in-compose run.
-      DATABASE_URL: postgresql+asyncpg://caviar:caviar@db:5432/caviar
-      # Default to development so the stack boots with example credentials
-      # (startup validation is advisory in development). Set APP_ENV=staging
-      # in your shell for a strict production-config rehearsal, which then
-      # requires a fully valid backend/.env (JWT mode, real Supabase, etc.).
-      APP_ENV: ${APP_ENV:-development}
-    ports:
-      - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
+WORKDIR /app
 
-  frontend:
-    build:
-      context: ./frontend
-      args:
-        # Public build-time config only (never secrets). Point the SPA at
-        # the backend published above.
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api/v1}
-        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-https://example.supabase.co}
-        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-replace-me}
-    ports:
-      - "8080:80"
-    depends_on:
-      - backend
+# Copy the built virtualenv and the application source.
+COPY --from=builder /opt/venv /opt/venv
+COPY --chown=caviar:caviar app ./app
+COPY --chown=caviar:caviar migrations ./migrations
+COPY --chown=caviar:caviar alembic.ini ./
 
-volumes:
-  caviar_pgdata:
+USER caviar
+
+EXPOSE 8000
+
+# Container-level liveness probe hitting the app's own health endpoint.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import urllib.request,sys; \
+sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=4).status==200 else sys.exit(1)"
+
+# Single worker by default; scale horizontally with more containers rather
+# than in-process workers (the in-process rate limiter is per-process).
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
