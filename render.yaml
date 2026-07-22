@@ -1,36 +1,44 @@
-# Render blueprint for the Caviar backend.
+# Render blueprint for the Caviar backend on the NATIVE PYTHON runtime
+# (not Docker).
 #
-# Builds the backend from its multi-stage Dockerfile (which installs the
-# Tectonic LaTeX compiler and pre-warms its resource bundle into the image),
-# runs database migrations on deploy, and serves the FastAPI app.
+# The build command installs Python deps and then runs render-build.sh, which
+# downloads the Tectonic LaTeX compiler (a self-contained static binary) into
+# the project's .render/ directory and pre-warms its resource bundle by
+# compiling a document that exercises every font size/shape the approved
+# templates use (\LARGE, \large, \bfseries, \itshape) so all Latin Modern
+# variants are cached. Whatever the build writes under the source dir
+# (/opt/render/project/src) is present at runtime.
 #
-# Secrets (DATABASE_URL, SUPABASE_*, OPENAI_API_KEY, JWT config) are set in
-# the Render dashboard, not committed here. sync:false marks them as
-# dashboard-managed.
+# rootDir is backend/, so the source dir maps to backend/ and the vendored
+# binary lives at /opt/render/project/src/.render/tectonic/tectonic.
+#
+# Secrets (DATABASE_URL, SUPABASE_*, OPENAI_API_KEY, JWT) are set in the Render
+# dashboard, not committed here (sync:false).
 services:
   - type: web
     name: caviar-backend
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    plan: starter
+    runtime: python
+    rootDir: backend
+    buildCommand: "pip install -U pip && pip install . && ./render-build.sh"
+    startCommand: "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     healthCheckPath: /api/v1/health
-    # Migrate then serve. $PORT is provided by Render.
-    dockerCommand: >-
-      sh -c "alembic upgrade head &&
-             uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
     envVars:
       - key: APP_ENV
         value: production
       - key: DEBUG
         value: "false"
-      # Tectonic: use the bundle baked into the image; do not reach the CDN
-      # at runtime. The Dockerfile pre-warms /opt/tectonic-cache.
+      # Point the app at the Tectonic binary + cache vendored by
+      # render-build.sh (rootDir=backend -> /opt/render/project/src).
+      - key: TECTONIC_BINARY_PATH
+        value: /opt/render/project/src/.render/tectonic/tectonic
       - key: TECTONIC_CACHE_DIR
-        value: /opt/tectonic-cache
+        value: /opt/render/project/src/.render/tectonic-cache
+      # The build pre-warms the full font set. If you ever see a runtime
+      # "TFM file ... not found", set this to "false" so runtime compiles can
+      # fetch any missing bundle resource from Tectonic's CDN on demand.
       - key: TECTONIC_ONLY_CACHED
-        value: "true"
-      # Dashboard-managed secrets (set these in Render, never in git):
+        value: "false"
+      # Dashboard-managed secrets (set in Render, never in git):
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_URL
